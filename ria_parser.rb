@@ -5,6 +5,7 @@ require 'open-uri'
 require 'securerandom'
 require 'nokogiri'
 load 'feed_parser.rb'
+load 'neo_connector.rb'
 
 class Feedjira::Parser::ITunesRSSItem
   element 'category', :as => :category
@@ -26,11 +27,10 @@ class RiaParser < FeedParser
          "http://ria.ru/export/rss2/announce/index.xml",
          "http://ria.ru/export/rss2/spravka/index.xml",
          "http://ria.ru/export/rss2/photolents/index.xml",
-          "http://ria.ru/export/rss2/video/index.xml",
-          "http://ria.ru/export/rss2/infografika/index.xml"]
+          "http://ria.ru/export/rss2/video/index.xml"]
 
   @@source = "ria-rss"
-  # @@kafka_feed_topic = 'ria_feed'
+  @@kafka_feed_topic = 'ria_feed'
   @@articles_set = 'RIA_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -47,8 +47,10 @@ class RiaParser < FeedParser
               body: get_body(item.url),
               # Not sure if needed
               # image_url: item.image
-            }.to_json
-            produce_feed @@source, article
+            }
+            NeoConnector.create_article article
+            json_article = article.to_json
+            produce_feed @@source, json_article
             #and encache url
             set_parsed(item.url)
           else
@@ -81,4 +83,8 @@ class RiaParser < FeedParser
     article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
   end
   #end of LentaParser class
+end
+
+if __FILE__ == $0
+  RiaParser.fetch_feed
 end

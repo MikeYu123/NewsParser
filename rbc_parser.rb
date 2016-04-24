@@ -5,11 +5,12 @@ require 'open-uri'
 require 'securerandom'
 require 'nokogiri'
 load 'feed_parser.rb'
+load 'neo_connector.rb'
 
 class RbcParser < FeedParser
   @@url = 'http://static.feed.rbc.ru/rbc/internal/rss.rbc.ru/rbc.ru/news.rss'
   @@source = "rbc-rss"
-  # @@kafka_feed_topic = 'rbc_feed'
+  @@kafka_feed_topic = 'rbc_feed'
   @@articles_set = 'RBC_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -18,17 +19,19 @@ class RbcParser < FeedParser
           #drop out all RBC auxillary tokens
           url = item.url.split('#')[0]
           #Checking for cachehits
-          unless is_parsed(item.url)
+          unless is_parsed(url)
             #if no cachehit, produce new article
             article = {
               uuid: SecureRandom.uuid,
               title: item.title,
-              url: item.url,
-              body: get_body(item.url),
+              url: url,
+              body: get_body(url),
               # Not sure if needed
               # image_url: item.image
-            }.to_json
-            produce_feed @@source, article
+            }
+            NeoConnector.create_article article
+            json_article = article.to_json
+            produce_feed @@source, json_article
             #and encache url
             set_parsed(item.url)
           else
@@ -58,4 +61,8 @@ class RbcParser < FeedParser
     article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
   end
   #end of LentaParser class
+end
+
+if __FILE__ == $0
+  RbcParser.fetch_feed
 end

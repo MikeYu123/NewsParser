@@ -5,11 +5,12 @@ require 'open-uri'
 require 'securerandom'
 require 'nokogiri'
 load 'feed_parser.rb'
+load 'neo_connector.rb'
 
 class GazetaRuParser < FeedParser
   @@url = 'http://www.gazeta.ru/export/rss/lenta.xml'
   @@source = "gazeta-ru-rss"
-  # @@kafka_feed_topic = 'gazeta_ru_feed'
+  @@kafka_feed_topic = 'gazeta_ru_feed'
   @@articles_set = 'GAZETA_RU_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -25,8 +26,10 @@ class GazetaRuParser < FeedParser
               body: get_body(item.url),
               # Not sure if needed
               # image_url: item.image
-            }.to_json
-            produce_feed @@source, article
+            }
+            NeoConnector.create_article article
+            json_article = article.to_json
+            produce_feed @@source, json_article
             #and encache url
             set_parsed(item.url)
           else
@@ -54,4 +57,8 @@ class GazetaRuParser < FeedParser
     article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
   end
   #end of LentaParser class
+end
+
+if __FILE__ == $0
+  GazetaRuParser.fetch_feed
 end

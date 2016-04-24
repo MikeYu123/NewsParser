@@ -5,11 +5,12 @@ require 'open-uri'
 require 'nokogiri'
 require 'securerandom'
 load 'feed_parser.rb'
+load 'neo_connector.rb'
 
 class MeduzaParser < FeedParser
   @@url = 'https://meduza.io/rss/all'
   @@source = "meduza-rss"
-  # @@kafka_feed_topic = 'meduza_feed'
+  @@kafka_feed_topic = 'meduza_feed'
   @@articles_set = 'MEDUZA_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -25,8 +26,10 @@ class MeduzaParser < FeedParser
               body: get_body(item.url),
               # Not sure if needed
               # image_url: item.image
-            }.to_json
-            produce_feed @@source, article
+            }
+            NeoConnector.create_article article
+            json_article = article.to_json
+            produce_feed @@source, json_article
             #and encache url
             set_parsed(item.url)
           else
@@ -54,4 +57,8 @@ class MeduzaParser < FeedParser
     article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
   end
   #end of LentaParser class
+end
+
+if __FILE__ == $0
+  MeduzaParser.fetch_feed
 end

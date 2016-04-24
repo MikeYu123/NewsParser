@@ -5,11 +5,12 @@ require 'open-uri'
 require 'securerandom'
 require 'nokogiri'
 load 'feed_parser.rb'
+load 'neo_connector.rb'
 
 class IzvestiaParser < FeedParser
   @@url = 'http://izvestia.ru/xml/rss/all.xml'
   @@source = "izvestia-rss"
-  # @@kafka_feed_topic = 'izvestia_feed'
+  @@kafka_feed_topic = 'izvestia_feed'
   @@articles_set = 'IZVESTIA_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -25,8 +26,11 @@ class IzvestiaParser < FeedParser
               body: get_body(item.url),
               # Not sure if needed
               # image_url: item.image
-            }.to_json
-            produce_feed @@source, article
+            }
+            p article
+            NeoConnector.create_article article
+            json_article = article.to_json
+            produce_feed @@source, json_article
             #and encache url
             set_parsed(item.url)
           else
@@ -51,9 +55,13 @@ class IzvestiaParser < FeedParser
     #removing all inline metadata
     article_parts = article_paragraphs.map{|paragraph| paragraph.text}
     #Izvestia add "read more" link at the end of message
-    article_parts = article_parts.select{|part| !part.start_with 'Читайте также'}
+    article_parts = article_parts.select{|part| !part.start_with? 'Читайте также'}
     #collecting parts into one body
     article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
   end
   #end of LentaParser class
+end
+
+if __FILE__ == $0
+  IzvestiaParser.fetch_feed
 end
