@@ -25,6 +25,26 @@ end
 every 2.hours do
   runner "IzvestiaParser.fetch_feed"
 end
+
+every 30.minutes do
+  runner "GoogleFeedProcessor.run_google_feed(0)"
+end
+
+every 30.minutes do
+  runner "GoogleFeedProcessor.run_google_feed(1)"
+end
+
+every 30.minutes do
+  runner "GoogleFeedProcessor.run_google_feed(2)"
+end
+
+every 30.minutes do
+  runner "GoogleFeedProcessor.run_google_feed(3)"
+end
+
+every 30.minutes do
+  runner "GoogleFeedProcessor.run_google_feed(4)"
+end
 #
 # every 4.days do
 #   runner "AnotherModel.prune_old_records"
