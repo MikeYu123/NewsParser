@@ -29,7 +29,7 @@ class RbcParser < FeedParser
               # Not sure if needed
               # image_url: item.image
             }
-            NeoConnector.create_article article
+            NeoConnector.new.create_article article
             json_article = article.to_json
             produce_feed @@source, json_article
             #and encache url

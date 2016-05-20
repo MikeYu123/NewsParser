@@ -7,12 +7,22 @@
 #
 # set :output, "/path/to/my/cron_log.log"
 #
-every 1.hours do
+every 2.hours do
   runner "GazetaRuParser.fetch_feed"
+end
+every 2.hours do
   runner "RbcParser.fetch_feed"
+end
+every 2.hours do
   runner "RiaRuParser.fetch_feed"
+end
+every 2.hours do
   runner "LentaParser.fetch_feed"
+end
+every 2.hours do
   runner "MeduzaParser.fetch_feed"
+end
+every 2.hours do
   runner "IzvestiaParser.fetch_feed"
 end
 #
