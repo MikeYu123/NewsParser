@@ -4,7 +4,7 @@ require 'nokogiri'
 # Explores news article URL given metadata [title, url, uuid] and also does some postprocessing
 class WebPageCrawler
   JS_ESCAPE_MAP   =   { '\\' => '\\\\', '</' => '<\/', "\r\n" => '\n', "\n" => '\n', "\r" => '\n', '"' => '\\"', "'" => "\\'" }
-  HTML_TAGS_REGEX = /<\/?\[^<>]*\/?>/
+  HTML_TAGS_REGEX = /<\/?[^<>]*\/?>/
 
   attr_accessor :data
   attr_accessor :doc
@@ -15,12 +15,14 @@ class WebPageCrawler
   end
 
   def init_doc
-    page = open(@data[:url])
-    @doc = Readability::Document.new(page).content
+    page = open(@data[:url]).read
+    @doc = Readability::Document.new(page).content.encode("utf-8")
+    p @doc
+    @doc
   end
 
   def remove_tags text
-    Nokogiri::HTML(text).xpath("//text()").text
+    Nokogiri::HTML(text).xpath("//text()").text.gsub HTML_TAGS_REGEX, ''
   end
 
   def remove_redundant_spaces text

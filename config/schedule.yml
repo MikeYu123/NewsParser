@@ -1,0 +1,4 @@
+hard_worker:
+  every: 1m
+  class: HardWorker
+  queue: default

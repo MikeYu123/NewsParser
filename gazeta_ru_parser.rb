@@ -4,8 +4,9 @@ require 'json'
 require 'open-uri'
 require 'securerandom'
 require 'nokogiri'
-load 'feed_parser.rb'
-load 'neo_connector.rb'
+load File.expand_path('../feed_parser.rb', __FILE__)
+load File.expand_path('../neo_connector.rb', __FILE__)
+load File.expand_path('../../AnalyzeNews/analysis_worker.rb', __FILE__)
 
 class GazetaRuParser < FeedParser
   @@url = 'http://www.gazeta.ru/export/rss/lenta.xml'
@@ -17,26 +18,30 @@ class GazetaRuParser < FeedParser
         feed = Feedjira::Feed.fetch_and_parse @@url
         response = feed.entries.each do |item|
           #Checking for cachehits
-          unless is_parsed(item.url)
-            #if no cachehit, produce new article
-            article = {
-              uuid: SecureRandom.uuid,
-              title: item.title,
-              url: item.url,
-              body: get_body(item.url),
-              # Not sure if needed
-              # image_url: item.image
-            }
-            NeoConnector.new.create_article article
-            json_article = article.to_json
-            produce_feed @@source, json_article
-            #and encache url
-            set_parsed(item.url)
+          unless NeoConnector.new.match_article_url item.url
+            unless is_parsed(item.url)
+              #if no cachehit, produce new article
+              article = {
+                uuid: SecureRandom.uuid,
+                title: item.title,
+                url: item.url,
+                body: get_body(item.url),
+                published_datetime: item.published,
+                published_unixtime: item.published.to_i
+                # Not sure if needed
+                # image_url: item.image
+              }
+              NeoConnector.new.create_article article
+              AnalysisWorker.perform_async(json_article)
+              json_article = article.to_json
+              #and encache url
+              set_parsed(item.url)
+            else
+              #Do nothing if cachehit
+            end
           else
-            #Do nothing if cachehit
           end
         end
-        deliver_feed
     rescue Faraday::ConnectionFailed => e
       {}.to_json
     end

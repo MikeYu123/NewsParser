@@ -12,11 +12,13 @@ class GoogleRSSReader
   def read_rss
     query = "http://news.google.ru/news?hl=ru&topic=#{@topic}&output=rss&ned=ru_ru&num=30&&scoring=n"
     feed = Feedjira::Feed.fetch_and_parse(query)
-    feed.entries.each map |entry|
+    feed.entries.map do |entry|
       {
         uuid: SecureRandom.uuid,
         title: entry.title,
-        url: entry.url.match(GOOGLE_URI_REGEX).first
+        url: entry.url.match(GOOGLE_URI_REGEX)[0],
+        published_datetime: entry.published,
+        published_unixtime: entry.published.to_i
       }
     end
   end

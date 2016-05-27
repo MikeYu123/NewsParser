@@ -1,5 +1,6 @@
 require 'redis'
 require 'ruby-kafka'
+
 class FeedParser
   ##TODO: contruct config.yml with host and port
   @@redis = Redis.new

@@ -4,8 +4,10 @@ require 'json'
 require 'open-uri'
 require 'securerandom'
 require 'nokogiri'
-load 'feed_parser.rb'
-load 'neo_connector.rb'
+load File.expand_path('../feed_parser.rb',__FILE__)
+load File.expand_path('../neo_connector.rb',__FILE__)
+load File.expand_path('../../AnalyzeNews/analysis_worker.rb', __FILE__)
+
 
 class Feedjira::Parser::ITunesRSSItem
   element 'category', :as => :category
@@ -39,26 +41,32 @@ class RiaParser < FeedParser
         response = feed.entries.each do |item|
           #Checking for cachehits
           unless is_parsed(item.url)
-            #if no cachehit, produce new article
-            article = {
-              uuid: SecureRandom.uuid,
-              title: item.title,
-              url: item.url,
-              body: get_body(item.url),
-              # Not sure if needed
-              # image_url: item.image
-            }
-            NeoConnector.new.create_article article
-            json_article = article.to_json
-            produce_feed @@source, json_article
-            #and encache url
-            set_parsed(item.url)
+            unless NeoConnector.new.match_article_url item.url
+              #if no cachehit, produce new article
+              article = {
+                uuid: SecureRandom.uuid,
+                title: item.title,
+                url: item.url,
+                body: get_body(item.url),
+                published_datetime: item.published,
+                published_unixtime: item.published.to_i
+                # Not sure if needed
+                # image_url: item.image
+              }
+              NeoConnector.new.create_article article
+              json_article = article.to_json
+              AnalysisWorker.perform_async(json_article)
+              # produce_feed @@source, json_article
+              #and encache url
+              set_parsed(item.url)
+            else
+              #Do nothing if cachehit
+            end
           else
-            #Do nothing if cachehit
           end
         end
       end
-        deliver_feed
+        # deliver_feed
     rescue Faraday::ConnectionFailed => e
       {}.to_json
     end
@@ -72,13 +80,12 @@ class RiaParser < FeedParser
     #Grabbing data
     doc = Nokogiri::HTML.parse html_response
     #IDEA: Divided articles can be analyzed partitioned
-    article_paragraphs = doc.search('#article_full_text p')
+    article_paragraphs = doc.search('.b-article__body p')
     #removing all inline metadata
+    # p article_paragraphs
     article_parts = article_paragraphs.map{|paragraph| paragraph.text}
     #Ria sometimes add empty paragraphs
     article_parts = article_parts.select{|part| part.length > 0}
-    #Drop some 'Rate article' options
-    article_parts = article_parts[0..-8]
     #collecting parts into one body
     article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
   end

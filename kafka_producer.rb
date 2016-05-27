@@ -8,19 +8,19 @@ class KafkaProducer
   attr_accessor :producer
   attr_accessor :topic_name
 
-  def initialize topic_name, host='localhost', port=9092
+  def initialize topic_name, host='localhost', port= 9092
     @host = host
     @port = port
     @kafka = Kafka.new(seed_brokers: ["#{host}:#{port}"])
-    @producer = Kafka.producer
+    @producer = @kafka.producer
     @topic_name = topic_name
   end
 
   def produce_message key, message
-    @produce.produce message, key: key, topic: @topic_name
+    @producer.produce message, key: key, topic: @topic_name
   end
 
   def deliver_feed
-    @kafka_producer.deliver_messages
+    @producer.deliver_messages
   end
 end

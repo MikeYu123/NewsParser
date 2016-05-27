@@ -1,53 +1,25 @@
-# Use this file to easily define all of your cron jobs.
-#
-# It's helpful, but not entirely necessary to understand cron before proceeding.
-# http://en.wikipedia.org/wiki/CronI
+require 'sidekiq'
+require 'sidekiq/scheduler'
 
-# Example:
-#
-# set :output, "/path/to/my/cron_log.log"
-#
-every 2.hours do
-  runner "GazetaRuParser.fetch_feed"
-end
-every 2.hours do
-  runner "RbcParser.fetch_feed"
-end
-every 2.hours do
-  runner "RiaRuParser.fetch_feed"
-end
-every 2.hours do
-  runner "LentaParser.fetch_feed"
-end
-every 2.hours do
-  runner "MeduzaParser.fetch_feed"
-end
-every 2.hours do
-  runner "IzvestiaParser.fetch_feed"
+Dir[File.expand_path('../../workers/*.rb',__FILE__)].each do |file|
+   load file
 end
 
-every 30.minutes do
-  runner "GoogleFeedProcessor.run_google_feed(0)"
+Sidekiq.configure_client do |config|
+  config.redis = { :namespace => 'sidekiq_jobs', :size => 1 }
 end
 
-every 30.minutes do
-  runner "GoogleFeedProcessor.run_google_feed(1)"
+class HardWorker
+  include Sidekiq::Worker
+  def perform
+  end
 end
 
-every 30.minutes do
-  runner "GoogleFeedProcessor.run_google_feed(2)"
+Sidekiq.configure_server do |config|
+  config.redis = { :namespace => 'sidekiq_jobs' }
+  config.on(:startup) do
+    Sidekiq::Scheduler.enabled = true
+    Sidekiq.schedule = YAML.load_file(File.expand_path("../schedule.yml", __FILE__))
+    Sidekiq::Scheduler.reload_schedule!
+  end
 end
-
-every 30.minutes do
-  runner "GoogleFeedProcessor.run_google_feed(3)"
-end
-
-every 30.minutes do
-  runner "GoogleFeedProcessor.run_google_feed(4)"
-end
-#
-# every 4.days do
-#   runner "AnotherModel.prune_old_records"
-# end
-
-# Learn more: http://github.com/javan/whenever
