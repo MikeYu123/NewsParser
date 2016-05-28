@@ -12,7 +12,6 @@ load File.expand_path('../../AnalyzeNews/analysis_worker.rb', __FILE__)
 class MeduzaParser < FeedParser
   @@url = 'https://meduza.io/rss/all'
   @@source = "meduza-rss"
-  @@kafka_feed_topic = 'meduza_feed'
   @@articles_set = 'MEDUZA_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -51,18 +50,21 @@ class MeduzaParser < FeedParser
   end
 
   def self.get_body url
-    #open-uri stores intermediate data in temporary file
-    temp_file = open(url)
-    # reading tmp file to string
-    html_response = temp_file.read
-    #Grabbing data
-    doc = Nokogiri::HTML.parse html_response
-    #IDEA: Divided articles can be analyzed partitioned
-    article_paragraphs = doc.search('div.Body > p')
-    #removing all inline metadata
-    article_parts = article_paragraphs.map{|paragraph| paragraph.text}
-    #collecting parts into one body
-    article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
+    begin
+      #open-uri stores intermediate data in temporary file
+      temp_file = open(url)
+      # reading tmp file to string
+      html_response = temp_file.read
+      #Grabbing data
+      doc = Nokogiri::HTML.parse html_response
+      #IDEA: Divided articles can be analyzed partitioned
+      article_paragraphs = doc.search('div.Body > p')
+      #removing all inline metadata
+      article_parts = article_paragraphs.map{|paragraph| paragraph.text}
+      #collecting parts into one body
+      article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
+    rescue RuntimeError
+    end
   end
   #end of LentaParser class
 end

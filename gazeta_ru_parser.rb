@@ -11,7 +11,6 @@ load File.expand_path('../../AnalyzeNews/analysis_worker.rb', __FILE__)
 class GazetaRuParser < FeedParser
   @@url = 'http://www.gazeta.ru/export/rss/lenta.xml'
   @@source = "gazeta-ru-rss"
-  @@kafka_feed_topic = 'gazeta_ru_feed'
   @@articles_set = 'GAZETA_RU_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -32,8 +31,8 @@ class GazetaRuParser < FeedParser
                 # image_url: item.image
               }
               NeoConnector.new.create_article article
-              AnalysisWorker.perform_async(json_article)
               json_article = article.to_json
+              AnalysisWorker.perform_async(json_article)
               #and encache url
               set_parsed(item.url)
             else
@@ -49,17 +48,20 @@ class GazetaRuParser < FeedParser
 
   def self.get_body url
     #open-uri stores intermediate data in temporary file
-    temp_file = open(url)
-    # reading tmp file to string
-    html_response = temp_file.read
-    #Grabbing data
-    doc = Nokogiri::HTML.parse html_response
-    #IDEA: Divided articles can be analyzed partitioned
-    article_paragraphs = doc.search('.news-body__text p')
-    #removing all inline metadata
-    article_parts = article_paragraphs.map{|paragraph| paragraph.text}
-    #collecting parts into one body
-    article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
+    begin
+      temp_file = open(url)
+      # reading tmp file to string
+      html_response = temp_file.read
+      #Grabbing data
+      doc = Nokogiri::HTML.parse html_response
+      #IDEA: Divided articles can be analyzed partitioned
+      article_paragraphs = doc.search('.news-body__text p')
+      #removing all inline metadata
+      article_parts = article_paragraphs.map{|paragraph| paragraph.text}
+      #collecting parts into one body
+      article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
+    rescue RuntimeError
+    end
   end
   #end of LentaParser class
 end

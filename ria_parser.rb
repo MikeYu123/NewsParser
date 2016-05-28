@@ -32,7 +32,6 @@ class RiaParser < FeedParser
           "http://ria.ru/export/rss2/video/index.xml"]
 
   @@source = "ria-rss"
-  @@kafka_feed_topic = 'ria_feed'
   @@articles_set = 'RIA_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -73,21 +72,24 @@ class RiaParser < FeedParser
   end
 
   def self.get_body url
-    #open-uri stores intermediate data in temporary file
-    temp_file = open(url)
-    # reading tmp file to string
-    html_response = temp_file.read
-    #Grabbing data
-    doc = Nokogiri::HTML.parse html_response
-    #IDEA: Divided articles can be analyzed partitioned
-    article_paragraphs = doc.search('.b-article__body p')
-    #removing all inline metadata
-    # p article_paragraphs
-    article_parts = article_paragraphs.map{|paragraph| paragraph.text}
-    #Ria sometimes add empty paragraphs
-    article_parts = article_parts.select{|part| part.length > 0}
-    #collecting parts into one body
-    article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
+    begin
+      #open-uri stores intermediate data in temporary file
+      temp_file = open(url)
+      # reading tmp file to string
+      html_response = temp_file.read
+      #Grabbing data
+      doc = Nokogiri::HTML.parse html_response
+      #IDEA: Divided articles can be analyzed partitioned
+      article_paragraphs = doc.search('.b-article__body p')
+      #removing all inline metadata
+      # p article_paragraphs
+      article_parts = article_paragraphs.map{|paragraph| paragraph.text}
+      #Ria sometimes add empty paragraphs
+      article_parts = article_parts.select{|part| part.length > 0}
+      #collecting parts into one body
+      article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
+    rescue RuntimeError
+    end
   end
   #end of LentaParser class
 end

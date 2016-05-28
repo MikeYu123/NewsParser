@@ -12,7 +12,6 @@ load File.expand_path('../../AnalyzeNews/analysis_worker.rb', __FILE__)
 class IzvestiaParser < FeedParser
   @@url = 'http://izvestia.ru/xml/rss/all.xml'
   @@source = "izvestia-rss"
-  @@kafka_feed_topic = 'izvestia_feed'
   @@articles_set = 'IZVESTIA_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -51,20 +50,23 @@ class IzvestiaParser < FeedParser
   end
 
   def self.get_body url
-    #open-uri stores intermediate data in temporary file
-    temp_file = open(url)
-    # reading tmp file to string
-    html_response = temp_file.read
-    #Grabbing data
-    doc = Nokogiri::HTML.parse html_response
-    #IDEA: Divided articles can be analyzed partitioned
-    article_paragraphs = doc.search('div[itemprop="articleBody"] p, div[itemprop="articleBody"] h2')
-    #removing all inline metadata
-    article_parts = article_paragraphs.map{|paragraph| paragraph.text}
-    #Izvestia add "read more" link at the end of message
-    article_parts = article_parts.select{|part| !part.start_with? 'Читайте также'}
-    #collecting parts into one body
-    article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
+    begin
+      #open-uri stores intermediate data in temporary file
+      temp_file = open(url)
+      # reading tmp file to string
+      html_response = temp_file.read
+      #Grabbing data
+      doc = Nokogiri::HTML.parse html_response
+      #IDEA: Divided articles can be analyzed partitioned
+      article_paragraphs = doc.search('div[itemprop="articleBody"] p, div[itemprop="articleBody"] h2')
+      #removing all inline metadata
+      article_parts = article_paragraphs.map{|paragraph| paragraph.text}
+      #Izvestia add "read more" link at the end of message
+      article_parts = article_parts.select{|part| !part.start_with? 'Читайте также'}
+      #collecting parts into one body
+      article_body = article_parts.reduce{|accumulator, part| "#{accumulator}\n#{part}"}
+    rescue RuntimeError
+    end
   end
   #end of LentaParser class
 end

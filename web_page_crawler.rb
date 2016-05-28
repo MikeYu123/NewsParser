@@ -4,7 +4,7 @@ require 'nokogiri'
 # Explores news article URL given metadata [title, url, uuid] and also does some postprocessing
 class WebPageCrawler
   JS_ESCAPE_MAP   =   { '\\' => '\\\\', '</' => '<\/', "\r\n" => '\n', "\n" => '\n', "\r" => '\n', '"' => '\\"', "'" => "\\'" }
-  HTML_TAGS_REGEX = /<\/?[^<>]*\/?>/
+  HTML_TAGS_REGEX = /<\/?\w*\/?>/
 
   attr_accessor :data
   attr_accessor :doc
@@ -15,10 +15,13 @@ class WebPageCrawler
   end
 
   def init_doc
-    page = open(@data[:url]).read
-    @doc = Readability::Document.new(page).content.encode("utf-8")
-    p @doc
-    @doc
+    begin
+      page = open(@data[:url]).read
+      @doc = Readability::Document.new(page).content.encode("utf-8")
+      p @doc
+      @doc
+    rescue RuntimeError
+    end
   end
 
   def remove_tags text
@@ -30,7 +33,7 @@ class WebPageCrawler
   end
 
   def escape_js text
-    text.gsub(/(\|<\/|\r\n|\342\200\250|\342\200\251|[\n\r"'])/u) {|match| JS_ESCAPE_MAP[match] }
+    text.gsub(/(\|<\/|\r\n|\342\200\250|\342\200\251|[\n\r"'])/u) {|match| " " }
   end
 
   def process_doc

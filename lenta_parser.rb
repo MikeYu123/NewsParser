@@ -11,7 +11,6 @@ load File.expand_path('../neo_connector.rb', __FILE__)
 class LentaParser < FeedParser
   @@url = 'https://lenta.ru/rss/'
   @@source = "lenta-rss"
-  @@kafka_feed_topic = 'lenta_feed'
   @@articles_set = 'LENTA_ARTICLES'
   def self.fetch_feed
     news = begin
@@ -50,19 +49,22 @@ class LentaParser < FeedParser
   end
 
   def self.get_body url
-    https_url = url.gsub 'http', 'https'
-    #open-uri stores intermediate data in temporary file
-    temp_file = open(https_url)
-    # reading tmp file to string
-    html_response = temp_file.read
-    #Grabbing data
-    doc = Nokogiri::HTML.parse html_response
-    #IDEA: Divided articles can be analyzed partitioned
-    article_paragraphs = doc.search('div.b-text.clearfix[itemprop="articleBody"] p')
-    #removing all inline metadata
-    article_parts = article_paragraphs.map{|paragraph| paragraph.text}
-    #collecting parts into one body
-    article_body = article_parts.reduce{|accumulator,part| "#{accumulator}\n#{part}"}
+    begin
+      https_url = url.gsub 'http', 'https'
+      #open-uri stores intermediate data in temporary file
+      temp_file = open(https_url)
+      # reading tmp file to string
+      html_response = temp_file.read
+      #Grabbing data
+      doc = Nokogiri::HTML.parse html_response
+      #IDEA: Divided articles can be analyzed partitioned
+      article_paragraphs = doc.search('div.b-text.clearfix[itemprop="articleBody"] p')
+      #removing all inline metadata
+      article_parts = article_paragraphs.map{|paragraph| paragraph.text}
+      #collecting parts into one body
+      article_body = article_parts.reduce{|accumulator,part| "#{accumulator}\n#{part}"}
+    rescue RuntimeError
+    end
   end
   #end of LentaParser class
 end
